@@ -1,12 +1,12 @@
-# Clod-AI Platform
+# Clod-AI | Kiberxavfsizlik Platformasi
 
-Uchta AI qobiliyatini birlashtirgan veb platforma:
+Uchta kiberxavfsizlik AI modulini birlashtirgan veb platforma.
 
-| Modul | Texnologiya | Vazifa |
-|---|---|---|
-| 💬 **Chatbot** | Claude API (Haiku) | O'zbek/rus/ingliz tillarida suhbat |
-| 🖼️ **Rasm tasnifi** | ResNet-50 (ImageNet) | Rasmni 1000 ta sinfdan biriga ajratish |
-| 📝 **Matn tahlili** | DistilBERT + BERT-NER | His-tuyg'u + shaxs/joy/tashkilot aniqlash |
+| Modul | Vazifa |
+|---|---|
+| 💬 **Chatbot** | CTF, zaifliklar, pentest, log tahlili bo'yicha mutaxassis |
+| 🔍 **Tahdid Tahlili** | IOC ajratish, phishing aniqlash, hujum patternlari (SQL/XSS/RCE va h.k.) |
+| 🖥️ **Skrinshot Tahlili** | Terminal, tarmoq diagrammasi, kod skrinshotini Claude Vision bilan tahlil |
 
 ## O'rnatish
 
@@ -17,30 +17,35 @@ pip install -r requirements.txt
 ## Ishga tushirish
 
 ```bash
-export ANTHROPIC_API_KEY="your-key-here"
+export ANTHROPIC_API_KEY="sk-ant-..."
 python main.py
+# → http://localhost:8000
 ```
 
-Brauzerda oching: `http://localhost:8000`
+## API
+
+| Method | Endpoint | Tavsif |
+|---|---|---|
+| POST | `/api/chat` | `{"messages":[...]}` — kiberxavfsizlik chatboti |
+| POST | `/api/analyze-threat` | `{"text":"..."}` — IOC + phishing + hujum pattern tahlili |
+| POST | `/api/analyze-screenshot` | `multipart` rasm — Claude Vision xavfsizlik tahlili |
 
 ## Loyiha tuzilmasi
 
 ```
 Clod-ai/
-├── main.py                  # FastAPI server
+├── main.py
 ├── modules/
-│   ├── chatbot.py           # Claude API integratsiyasi
-│   ├── image_classifier.py  # ResNet-50 tasniflovchi
-│   └── text_analyzer.py     # DistilBERT/BERT-NER tahlillovchi
-├── static/
-│   └── index.html           # Veb interfeys
+│   ├── chatbot.py            # Claude Haiku — security expert chatbot
+│   ├── threat_analyzer.py    # Regex IOC + phishing heuristics + attack patterns
+│   └── screenshot_analyzer.py# Claude Haiku Vision — security screenshot analysis
+├── static/index.html
 └── requirements.txt
 ```
 
-## API endpointlari
+## Qo'llab-quvvatlanadigan tahdidlar
 
-| Method | URL | Tavsif |
-|---|---|---|
-| POST | `/api/chat` | `{"messages": [...]}` — chatbot |
-| POST | `/api/classify-image` | `multipart/form-data` — rasm tasnifi |
-| POST | `/api/analyze-text` | `{"text": "..."}` — matn tahlili |
+- SQL Injection, XSS, Path Traversal, Command Injection
+- SSRF, LFI/RFI, Brute Force
+- Phishing email tahlili (O'zbek + Ingliz + Rus)
+- IOC: IP, URL, Email, MD5/SHA1/SHA256, CVE

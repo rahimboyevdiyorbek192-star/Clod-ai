@@ -1,13 +1,20 @@
 import os
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from modules import chatbot, image_classifier, text_analyzer
+from modules import chatbot, threat_analyzer, screenshot_analyzer
 
-app = FastAPI(title="Clod-AI Platform", version="1.0.0")
+app = FastAPI(title="Clod-AI Cybersecurity Platform", version="2.0.0")
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+SUPPORTED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif"}
+
+
+def _require_api_key():
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY sozlanmagan")
 
 
 @app.get("/")
@@ -15,7 +22,7 @@ def index():
     return FileResponse("static/index.html")
 
 
-# ── Chatbot ──────────────────────────────────────────────────────────────────
+# ── Cybersecurity Chatbot ─────────────────────────────────────────────────────
 
 class ChatRequest(BaseModel):
     messages: list[dict]
@@ -23,35 +30,34 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 def chat(req: ChatRequest):
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY sozlanmagan")
+    _require_api_key()
     reply = chatbot.chat(req.messages)
     return {"reply": reply}
 
 
-# ── Image classifier ─────────────────────────────────────────────────────────
-
-@app.post("/api/classify-image")
-async def classify_image(file: UploadFile = File(...)):
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Faqat rasm fayllari qabul qilinadi")
-    data = await file.read()
-    results = image_classifier.classify(data)
-    return {"predictions": results}
-
-
-# ── Text analyzer ────────────────────────────────────────────────────────────
+# ── Threat Text Analyzer ──────────────────────────────────────────────────────
 
 class TextRequest(BaseModel):
     text: str
 
 
-@app.post("/api/analyze-text")
-def analyze_text(req: TextRequest):
+@app.post("/api/analyze-threat")
+def analyze_threat(req: TextRequest):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="Matn bo'sh bo'lmasligi kerak")
-    result = text_analyzer.analyze(req.text)
-    return result
+    return threat_analyzer.analyze(req.text)
+
+
+# ── Security Screenshot Analyzer ──────────────────────────────────────────────
+
+@app.post("/api/analyze-screenshot")
+async def analyze_screenshot(file: UploadFile = File(...)):
+    if file.content_type not in SUPPORTED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="Faqat PNG, JPEG, WEBP, GIF qabul qilinadi")
+    _require_api_key()
+    data = await file.read()
+    analysis = screenshot_analyzer.analyze(data, media_type=file.content_type)
+    return {"analysis": analysis}
 
 
 if __name__ == "__main__":

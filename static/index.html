@@ -3,179 +3,251 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Clod-AI Platform</title>
+  <title>Clod-AI | Kiberxavfsizlik Platformasi</title>
   <style>
     :root {
-      --bg: #0f1117;
-      --card: #1a1d27;
-      --border: #2e3148;
-      --accent: #6c63ff;
-      --accent2: #ff6584;
-      --accent3: #43e97b;
-      --text: #e8eaf6;
-      --muted: #8890b0;
+      --bg: #080c10;
+      --panel: #0d1117;
+      --card: #161b22;
+      --border: #21262d;
+      --green: #39d353;
+      --green-dim: #1a7f37;
+      --red: #ff4d4f;
+      --orange: #f0883e;
+      --yellow: #d29922;
+      --blue: #58a6ff;
+      --purple: #bc8cff;
+      --text: #c9d1d9;
+      --muted: #6e7681;
+      --critical: #ff4d4f;
+      --high: #f0883e;
+      --medium: #d29922;
+      --low: #58a6ff;
+      --safe: #39d353;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+    body { background: var(--bg); color: var(--text); font-family: 'Cascadia Code', 'Fira Code', monospace; min-height: 100vh; }
+
+    /* Scanline effect */
+    body::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 999;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,.015) 2px, rgba(0,255,0,.015) 4px);
+    }
 
     header {
-      display: flex; align-items: center; gap: 14px;
-      padding: 22px 32px; border-bottom: 1px solid var(--border);
-      background: linear-gradient(135deg, #1a1d27 0%, #0f1117 100%);
+      display: flex; align-items: center; gap: 16px;
+      padding: 18px 28px; border-bottom: 1px solid var(--border);
+      background: var(--panel);
     }
-    .logo { font-size: 2rem; }
-    header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: .5px; }
-    header span { color: var(--accent); }
+    .logo-text { font-size: 1.4rem; font-weight: 700; letter-spacing: 2px; }
+    .logo-text .hi { color: var(--green); }
+    .badge {
+      font-size: .65rem; background: var(--green-dim); color: var(--green);
+      padding: 2px 8px; border-radius: 4px; border: 1px solid var(--green-dim);
+      letter-spacing: 1px; font-weight: 600;
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-left: auto; box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
     .tabs {
-      display: flex; gap: 4px; padding: 20px 32px 0;
+      display: flex; gap: 0;
       border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      padding: 0 28px;
     }
     .tab {
-      padding: 10px 22px; border-radius: 8px 8px 0 0;
-      border: 1px solid transparent; border-bottom: none;
-      cursor: pointer; font-size: .95rem; font-weight: 500;
-      background: transparent; color: var(--muted);
-      transition: all .2s;
+      padding: 12px 22px; cursor: pointer; font-size: .85rem; font-weight: 600;
+      color: var(--muted); border-bottom: 2px solid transparent;
+      letter-spacing: .5px; transition: all .15s; background: none; border-top: none; border-left: none; border-right: none;
+      font-family: inherit;
     }
-    .tab.active { background: var(--card); color: var(--text); border-color: var(--border); }
-    .tab:hover:not(.active) { color: var(--text); }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--green); border-bottom-color: var(--green); }
 
-    .panels { padding: 28px 32px; max-width: 900px; }
+    .panels { padding: 24px 28px; max-width: 960px; }
     .panel { display: none; }
     .panel.active { display: block; }
 
     .card {
       background: var(--card); border: 1px solid var(--border);
-      border-radius: 12px; padding: 24px; margin-bottom: 20px;
+      border-radius: 8px; padding: 20px; margin-bottom: 18px;
     }
-    h2 { font-size: 1.1rem; margin-bottom: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-size: .8rem; }
+    .section-title {
+      font-size: .7rem; letter-spacing: 2px; color: var(--muted);
+      text-transform: uppercase; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 8px;
+    }
+
+    /* Inputs */
+    textarea, input[type=text] {
+      width: 100%; background: #0d1117; border: 1px solid var(--border); color: var(--text);
+      border-radius: 6px; padding: 10px 14px; font-size: .9rem; resize: vertical; outline: none;
+      font-family: inherit; transition: border .15s;
+    }
+    textarea:focus, input[type=text]:focus { border-color: var(--green); }
+
+    button.btn {
+      background: transparent; border: 1px solid var(--green); color: var(--green);
+      border-radius: 6px; padding: 9px 20px; font-size: .85rem; font-weight: 700;
+      cursor: pointer; letter-spacing: 1px; font-family: inherit;
+      transition: background .15s, color .15s;
+    }
+    button.btn:hover { background: var(--green); color: var(--bg); }
+    button.btn:disabled { opacity: .4; cursor: not-allowed; }
+    button.btn:disabled:hover { background: transparent; color: var(--green); }
 
     /* Chat */
     #chat-messages {
-      height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
-      padding: 4px; margin-bottom: 16px;
+      height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+      padding: 4px; margin-bottom: 14px;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
     }
-    .msg { max-width: 80%; padding: 12px 16px; border-radius: 12px; line-height: 1.5; font-size: .95rem; }
-    .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 12px 12px 2px 12px; }
-    .msg.bot { align-self: flex-start; background: #252840; border-radius: 12px 12px 12px 2px; }
-    .msg.error { background: #3d1a20; color: #ff8a9a; }
+    .msg { max-width: 85%; padding: 10px 14px; border-radius: 6px; line-height: 1.55; font-size: .88rem; }
+    .msg.user {
+      align-self: flex-end; background: #1a2d1a; border: 1px solid var(--green-dim);
+      color: var(--green); border-radius: 6px 6px 2px 6px;
+    }
+    .msg.bot {
+      align-self: flex-start; background: var(--card); border: 1px solid var(--border);
+      border-radius: 6px 6px 6px 2px;
+    }
+    .msg.error { background: #1a0d0d; border: 1px solid #4d1919; color: var(--red); }
+    .msg-label { font-size: .65rem; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; }
 
-    .input-row { display: flex; gap: 10px; }
-    textarea, input[type=text] {
-      flex: 1; background: #12141f; border: 1px solid var(--border); color: var(--text);
-      border-radius: 8px; padding: 10px 14px; font-size: .95rem; resize: none; outline: none;
-      transition: border .2s;
-    }
-    textarea:focus, input[type=text]:focus { border-color: var(--accent); }
-    button {
-      background: var(--accent); color: #fff; border: none; border-radius: 8px;
-      padding: 10px 20px; font-size: .95rem; font-weight: 600; cursor: pointer;
-      transition: opacity .2s, transform .1s;
-    }
-    button:hover { opacity: .88; }
-    button:active { transform: scale(.97); }
-    button:disabled { opacity: .45; cursor: not-allowed; }
+    .input-row { display: flex; gap: 10px; align-items: flex-end; }
+    .input-row textarea { height: 64px; resize: none; }
 
-    /* Image */
+    /* Threat level badge */
+    .threat-badge {
+      display: inline-block; padding: 4px 14px; border-radius: 4px;
+      font-size: .75rem; font-weight: 700; letter-spacing: 2px;
+    }
+    .threat-badge.critical { background: #2d0a0a; color: var(--critical); border: 1px solid var(--critical); }
+    .threat-badge.high { background: #2d1a0a; color: var(--high); border: 1px solid var(--high); }
+    .threat-badge.medium { background: #2d250a; color: var(--yellow); border: 1px solid var(--yellow); }
+    .threat-badge.low { background: #0a1a2d; color: var(--blue); border: 1px solid var(--blue); }
+    .threat-badge.safe { background: #0a2d0a; color: var(--safe); border: 1px solid var(--safe); }
+
+    /* IOC chips */
+    .ioc-group { margin-bottom: 14px; }
+    .ioc-label { font-size: .65rem; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      font-size: .78rem; padding: 3px 10px; border-radius: 4px; font-family: inherit;
+      background: #161b22; border: 1px solid var(--border); word-break: break-all;
+    }
+    .chip.ip { color: #58a6ff; border-color: #1c3d6e; }
+    .chip.url { color: #bc8cff; border-color: #3d1c6e; }
+    .chip.email { color: #f0883e; border-color: #6e3a1c; }
+    .chip.hash { color: var(--muted); font-size: .72rem; }
+    .chip.cve { color: var(--red); border-color: #6e1c1c; }
+    .chip.attack { color: var(--orange); border-color: #6e3a1c; }
+    .chip.kw { color: var(--yellow); border-color: #6e5a1c; font-size: .75rem; }
+
+    /* Phishing bar */
+    .phish-bar-bg { height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; margin: 8px 0; }
+    .phish-bar { height: 100%; border-radius: 3px; transition: width .5s; }
+
+    /* Screenshot drop */
     .drop-zone {
-      border: 2px dashed var(--border); border-radius: 12px;
-      padding: 48px; text-align: center; cursor: pointer;
-      transition: border .2s, background .2s; margin-bottom: 16px;
+      border: 2px dashed var(--border); border-radius: 8px;
+      padding: 56px 24px; text-align: center; cursor: pointer;
+      transition: border .2s, background .2s;
     }
-    .drop-zone:hover, .drop-zone.drag { border-color: var(--accent); background: #1e2035; }
-    .drop-zone .icon { font-size: 3rem; margin-bottom: 10px; }
-    .drop-zone p { color: var(--muted); }
-    #img-preview { max-width: 100%; max-height: 260px; border-radius: 8px; display: none; margin-bottom: 16px; }
-
-    .predictions { display: flex; flex-direction: column; gap: 8px; }
-    .pred-row { display: flex; align-items: center; gap: 12px; }
-    .pred-label { min-width: 140px; font-size: .9rem; }
-    .pred-bar-bg { flex: 1; height: 8px; background: #252840; border-radius: 4px; overflow: hidden; }
-    .pred-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 4px; transition: width .5s; }
-    .pred-pct { width: 50px; text-align: right; font-size: .85rem; color: var(--muted); }
-
-    /* Text */
-    .analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .stat-box { background: #12141f; border-radius: 10px; padding: 18px; text-align: center; }
-    .stat-val { font-size: 2rem; font-weight: 700; }
-    .stat-label { color: var(--muted); font-size: .8rem; margin-top: 4px; }
-    .positive { color: var(--accent3); }
-    .negative { color: var(--accent2); }
-    .entities-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-    .entity-chip {
-      padding: 4px 12px; border-radius: 20px; font-size: .8rem; font-weight: 600;
-      background: #252840; border: 1px solid var(--border);
+    .drop-zone:hover, .drop-zone.drag { border-color: var(--green); background: #0a1a0a; }
+    .drop-zone-icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .drop-zone p { color: var(--muted); font-size: .85rem; }
+    #img-preview { max-width: 100%; max-height: 280px; border-radius: 6px; display: none; margin: 14px 0; border: 1px solid var(--border); }
+    .analysis-output {
+      background: #0d1117; border: 1px solid var(--border); border-radius: 6px;
+      padding: 16px; font-size: .88rem; line-height: 1.7; margin-top: 16px;
+      white-space: pre-wrap; word-break: break-word;
     }
-    .entity-chip .etype { color: var(--muted); margin-left: 4px; font-weight: 400; }
 
-    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #fff3; border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 6px; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(57,211,83,.2); border-top-color: var(--green); border-radius: 50%; animation: spin .5s linear infinite; vertical-align: middle; margin-right: 6px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .stat-box { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 14px; text-align: center; }
+    .stat-val { font-size: 1.8rem; font-weight: 700; }
+    .stat-lbl { font-size: .65rem; letter-spacing: 1px; color: var(--muted); margin-top: 4px; text-transform: uppercase; }
+
+    .empty { color: var(--muted); font-size: .82rem; font-style: italic; }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">🤖</div>
-  <h1>Clod-<span>AI</span> Platform</h1>
+  <div class="logo-text"><span class="hi">CLOD</span>-AI</div>
+  <div class="badge">CYBER SEC</div>
+  <div class="status-dot" title="Tizim ishlamoqda"></div>
 </header>
 
 <div class="tabs">
-  <button class="tab active" onclick="switchTab('chat', this)">💬 Chatbot</button>
-  <button class="tab" onclick="switchTab('image', this)">🖼️ Rasm Tasnifi</button>
-  <button class="tab" onclick="switchTab('text', this)">📝 Matn Tahlili</button>
+  <button class="tab active" onclick="switchTab('chat',this)">[ CHATBOT ]</button>
+  <button class="tab" onclick="switchTab('threat',this)">[ TAHDID TAHLILI ]</button>
+  <button class="tab" onclick="switchTab('screen',this)">[ SKRINSHOT TAHLILI ]</button>
 </div>
 
 <div class="panels">
 
-  <!-- CHAT PANEL -->
+  <!-- CHATBOT -->
   <div class="panel active" id="panel-chat">
     <div class="card">
-      <h2>AI bilan suhbat</h2>
+      <div class="section-title">Kiberxavfsizlik Yordamchisi</div>
       <div id="chat-messages">
-        <div class="msg bot">Salom! Men Clod-AI yordamchisiman. Qanday yordam bera olaman? 😊</div>
+        <div class="msg bot">
+          <div class="msg-label">CLOD-AI</div>
+          Salom. Men kiberxavfsizlik bo'yicha mutaxassis yordamchiman.<br>
+          CTF, zaifliklar, penetratsion testlash, log tahlili — istalgan savolingizni bering.
+        </div>
       </div>
       <div class="input-row">
-        <textarea id="chat-input" rows="2" placeholder="Xabar yozing... (Enter = yuborish)"></textarea>
-        <button id="chat-btn" onclick="sendChat()">Yuborish</button>
+        <textarea id="chat-input" placeholder="Savol yozing... (Enter = yuborish, Shift+Enter = yangi qator)"></textarea>
+        <button class="btn" id="chat-btn" onclick="sendChat()">YUBORISH</button>
       </div>
     </div>
   </div>
 
-  <!-- IMAGE PANEL -->
-  <div class="panel" id="panel-image">
+  <!-- THREAT ANALYZER -->
+  <div class="panel" id="panel-threat">
     <div class="card">
-      <h2>Rasm yuklang</h2>
-      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('img-input').click()"
+      <div class="section-title">Matn / Log / Email Tahlili</div>
+      <textarea id="threat-input" rows="7"
+        placeholder="Log fayl, phishing email, shubhali matn, CVE tavsifi, tarmoq trafigi parchasini kiriting..."></textarea>
+      <div style="margin-top:12px">
+        <button class="btn" onclick="analyzeThreat()">TAHLIL QILISH</button>
+      </div>
+      <div id="threat-result"></div>
+    </div>
+  </div>
+
+  <!-- SCREENSHOT ANALYZER -->
+  <div class="panel" id="panel-screen">
+    <div class="card">
+      <div class="section-title">Xavfsizlik Skrinshotini Tahlil Qilish</div>
+      <div class="drop-zone" id="drop-zone"
+           onclick="document.getElementById('img-input').click()"
            ondragover="event.preventDefault();this.classList.add('drag')"
            ondragleave="this.classList.remove('drag')"
            ondrop="handleDrop(event)">
-        <div class="icon">📁</div>
-        <p>Rasmni bu yerga tashlang yoki bosing</p>
-        <p style="font-size:.8rem;margin-top:6px;color:#555">JPG, PNG, WEBP</p>
+        <div class="drop-zone-icon">🔍</div>
+        <p>Terminal, tarmoq diagrammasi, xato xabari, kod skrinshotini yuklang</p>
+        <p style="margin-top:6px;font-size:.75rem;opacity:.6">PNG · JPEG · WEBP · GIF</p>
       </div>
       <input type="file" id="img-input" accept="image/*" style="display:none" onchange="handleFile(this.files[0])"/>
       <img id="img-preview"/>
-      <button id="classify-btn" onclick="classifyImage()" disabled>Tasniflash</button>
-      <div id="predictions" style="margin-top:20px"></div>
-    </div>
-  </div>
-
-  <!-- TEXT PANEL -->
-  <div class="panel" id="panel-text">
-    <div class="card">
-      <h2>Matn kiriting</h2>
-      <textarea id="text-input" rows="5" style="width:100%;margin-bottom:14px"
-        placeholder="Tahlil qilmoqchi bo'lgan matnni yozing..."></textarea>
-      <button onclick="analyzeText()">Tahlil qilish</button>
-      <div id="text-result" style="margin-top:20px"></div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn" id="screen-btn" onclick="analyzeScreenshot()" disabled>TAHLIL QILISH</button>
+        <span id="screen-filename" style="font-size:.8rem;color:var(--muted)"></span>
+      </div>
+      <div id="screen-result"></div>
     </div>
   </div>
 
 </div>
 
 <script>
-// ── Tab switching ──────────────────────────────────────────────────────────
+// ── Utils ─────────────────────────────────────────────────────────────────────
 function switchTab(name, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -183,7 +255,7 @@ function switchTab(name, el) {
   document.getElementById('panel-' + name).classList.add('active');
 }
 
-// ── Chat ───────────────────────────────────────────────────────────────────
+// ── Chat ──────────────────────────────────────────────────────────────────────
 const chatHistory = [];
 
 document.getElementById('chat-input').addEventListener('keydown', e => {
@@ -194,48 +266,114 @@ function appendMsg(text, role) {
   const box = document.getElementById('chat-messages');
   const div = document.createElement('div');
   div.className = 'msg ' + role;
-  div.textContent = text;
+  if (role === 'bot') div.innerHTML = '<div class="msg-label">CLOD-AI</div>' + escHtml(text);
+  else div.innerHTML = '<div class="msg-label">SIZ</div>' + escHtml(text);
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
   return div;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
 }
 
 async function sendChat() {
   const inp = document.getElementById('chat-input');
   const text = inp.value.trim();
   if (!text) return;
-
   inp.value = '';
   appendMsg(text, 'user');
   chatHistory.push({ role: 'user', content: text });
 
   const btn = document.getElementById('chat-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>KUTMOQDA';
 
   const thinking = appendMsg('...', 'bot');
+  thinking.querySelector('div').nextSibling && null;
 
   try {
     const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ messages: chatHistory }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Xato yuz berdi');
-    thinking.textContent = data.reply;
+    if (!res.ok) throw new Error(data.detail || 'Server xatosi');
+    thinking.innerHTML = '<div class="msg-label">CLOD-AI</div>' + escHtml(data.reply);
     chatHistory.push({ role: 'assistant', content: data.reply });
-  } catch (e) {
-    thinking.textContent = '❌ ' + e.message;
+  } catch(e) {
     thinking.className = 'msg error';
+    thinking.innerHTML = '<div class="msg-label">XATO</div>' + escHtml(e.message);
     chatHistory.pop();
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Yuborish';
+    btn.disabled = false; btn.innerHTML = 'YUBORISH';
   }
 }
 
-// ── Image classifier ───────────────────────────────────────────────────────
+// ── Threat Analyzer ───────────────────────────────────────────────────────────
+async function analyzeThreat() {
+  const text = document.getElementById('threat-input').value.trim();
+  if (!text) return;
+
+  const result = document.getElementById('threat-result');
+  result.innerHTML = '<div style="margin-top:16px;color:var(--muted)"><span class="spinner"></span>Tahlil qilinmoqda...</div>';
+
+  try {
+    const res = await fetch('/api/analyze-threat', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ text }),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail);
+
+    const colorMap = { critical:'#ff4d4f', high:'#f0883e', medium:'#d29922', low:'#58a6ff', safe:'#39d353' };
+    const barColor = colorMap[d.threat_color] || '#39d353';
+
+    const iocs = d.iocs;
+    const allHashes = [...iocs.hashes.md5, ...iocs.hashes.sha1, ...iocs.hashes.sha256];
+
+    result.innerHTML = `
+      <div style="margin-top:20px">
+        <div class="grid2">
+          <div class="stat-box">
+            <div class="stat-val" style="color:${barColor}">${d.threat_level.toUpperCase()}</div>
+            <div class="stat-lbl">Xavf Darajasi</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val">${d.total_iocs}</div>
+            <div class="stat-lbl">Jami IOC</div>
+          </div>
+        </div>
+
+        ${d.attack_patterns.length ? `
+        <div class="ioc-group">
+          <div class="ioc-label">⚠️  Hujum Turlari</div>
+          <div class="chips">${d.attack_patterns.map(a=>`<div class="chip attack">${a}</div>`).join('')}</div>
+        </div>` : ''}
+
+        <div class="ioc-group">
+          <div class="ioc-label">🎣  Phishing Xavfi — ${d.phishing.level} (${d.phishing.score}%)</div>
+          <div class="phish-bar-bg"><div class="phish-bar" style="width:${d.phishing.score}%;background:${barColor}"></div></div>
+          ${d.phishing.keywords.length
+            ? `<div class="chips" style="margin-top:6px">${d.phishing.keywords.map(k=>`<div class="chip kw">${k}</div>`).join('')}</div>`
+            : '<div class="empty">Phishing kalit so\'zlar topilmadi</div>'}
+        </div>
+
+        ${iocs.ips.length ? `<div class="ioc-group"><div class="ioc-label">🌐  IP Manzillar</div><div class="chips">${iocs.ips.map(v=>`<div class="chip ip">${v}</div>`).join('')}</div></div>` : ''}
+        ${iocs.urls.length ? `<div class="ioc-group"><div class="ioc-label">🔗  URL-lar</div><div class="chips">${iocs.urls.map(v=>`<div class="chip url">${v}</div>`).join('')}</div></div>` : ''}
+        ${iocs.emails.length ? `<div class="ioc-group"><div class="ioc-label">✉️  Email Manzillar</div><div class="chips">${iocs.emails.map(v=>`<div class="chip email">${v}</div>`).join('')}</div></div>` : ''}
+        ${allHashes.length ? `<div class="ioc-group"><div class="ioc-label">🔑  Xesh Qiymatlar (MD5/SHA1/SHA256)</div><div class="chips">${allHashes.map(v=>`<div class="chip hash">${v}</div>`).join('')}</div></div>` : ''}
+        ${iocs.cves.length ? `<div class="ioc-group"><div class="ioc-label">🛡️  CVE Raqamlari</div><div class="chips">${iocs.cves.map(v=>`<div class="chip cve">${v}</div>`).join('')}</div></div>` : ''}
+
+        ${!d.attack_patterns.length && d.total_iocs === 0 && d.phishing.score === 0
+          ? '<div class="empty" style="text-align:center;padding:20px">Hech qanday tahdid belgilari topilmadi</div>'
+          : ''}
+      </div>`;
+  } catch(e) {
+    result.innerHTML = `<div style="margin-top:14px;color:var(--red)">❌ ${e.message}</div>`;
+  }
+}
+
+// ── Screenshot Analyzer ───────────────────────────────────────────────────────
 let selectedFile = null;
 
 function handleDrop(e) {
@@ -250,83 +388,31 @@ function handleFile(file) {
   const preview = document.getElementById('img-preview');
   preview.src = URL.createObjectURL(file);
   preview.style.display = 'block';
-  document.getElementById('classify-btn').disabled = false;
-  document.getElementById('predictions').innerHTML = '';
+  document.getElementById('screen-btn').disabled = false;
+  document.getElementById('screen-filename').textContent = file.name;
+  document.getElementById('screen-result').innerHTML = '';
+  document.getElementById('drop-zone').style.display = 'none';
 }
 
-async function classifyImage() {
+async function analyzeScreenshot() {
   if (!selectedFile) return;
-  const btn = document.getElementById('classify-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Tasniflanmoqda...';
+  const btn = document.getElementById('screen-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>TAHLIL...';
+  document.getElementById('screen-result').innerHTML = '';
 
   try {
     const form = new FormData();
     form.append('file', selectedFile);
-    const res = await fetch('/api/classify-image', { method: 'POST', body: form });
+    const res = await fetch('/api/analyze-screenshot', { method: 'POST', body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);
-
-    const box = document.getElementById('predictions');
-    box.innerHTML = '<h2 style="margin-bottom:14px">Natijalar</h2><div class="predictions"></div>';
-    const list = box.querySelector('.predictions');
-    data.predictions.forEach(p => {
-      list.innerHTML += `
-        <div class="pred-row">
-          <div class="pred-label">${p.label}</div>
-          <div class="pred-bar-bg"><div class="pred-bar" style="width:${p.confidence}%"></div></div>
-          <div class="pred-pct">${p.confidence}%</div>
-        </div>`;
-    });
-  } catch (e) {
-    document.getElementById('predictions').innerHTML = `<p style="color:#ff8a9a">❌ ${e.message}</p>`;
+    document.getElementById('screen-result').innerHTML =
+      `<div class="analysis-output">${escHtml(data.analysis)}</div>`;
+  } catch(e) {
+    document.getElementById('screen-result').innerHTML =
+      `<div style="margin-top:14px;color:var(--red)">❌ ${e.message}</div>`;
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Tasniflash';
-  }
-}
-
-// ── Text analyzer ──────────────────────────────────────────────────────────
-async function analyzeText() {
-  const text = document.getElementById('text-input').value.trim();
-  if (!text) return;
-
-  const result = document.getElementById('text-result');
-  result.innerHTML = '<span class="spinner"></span> Tahlil qilinmoqda...';
-
-  try {
-    const res = await fetch('/api/analyze-text', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail);
-
-    const sentClass = data.sentiment.label_en === 'POSITIVE' ? 'positive' : 'negative';
-    const entHtml = data.entities.length
-      ? data.entities.map(e =>
-          `<div class="entity-chip">${e.text} <span class="etype">${e.type}</span></div>`
-        ).join('')
-      : '<p style="color:var(--muted);font-size:.9rem">Aniq ob\'ektlar topilmadi</p>';
-
-    result.innerHTML = `
-      <div class="analysis-grid" style="margin-bottom:16px">
-        <div class="stat-box">
-          <div class="stat-val ${sentClass}">${data.sentiment.label_uz}</div>
-          <div class="stat-label">His-tuyg'u (${data.sentiment.confidence}% ishonch)</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-val">${data.word_count}</div>
-          <div class="stat-label">So'zlar soni</div>
-        </div>
-      </div>
-      <div class="card" style="margin:0">
-        <h2 style="margin-bottom:10px">Topilgan shaxs/joy/tashkilot nomlari</h2>
-        <div class="entities-list">${entHtml}</div>
-      </div>`;
-  } catch (e) {
-    result.innerHTML = `<p style="color:#ff8a9a">❌ ${e.message}</p>`;
+    btn.disabled = false; btn.innerHTML = 'TAHLIL QILISH';
   }
 }
 </script>
