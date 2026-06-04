@@ -3,6 +3,7 @@ fastapi==0.115.0
 uvicorn==0.30.6
 anthropic==0.40.0
 python-multipart==0.0.12
+aiohttp==3.10.5
 
 # Telegram Bot (OSINT)
 telethon==1.36.0
