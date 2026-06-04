@@ -1,4 +1,11 @@
+# Web API (Clod-AI)
 fastapi==0.115.0
 uvicorn==0.30.6
 anthropic==0.40.0
 python-multipart==0.0.12
+
+# Telegram Bot (OSINT)
+telethon==1.36.0
+python-dotenv==1.0.1
+openpyxl==3.1.5
+aiosqlite==0.20.0
