@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Clod-AI Platform</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #1a1d27;
+      --border: #2e3148;
+      --accent: #6c63ff;
+      --accent2: #ff6584;
+      --accent3: #43e97b;
+      --text: #e8eaf6;
+      --muted: #8890b0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 22px 32px; border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, #1a1d27 0%, #0f1117 100%);
+    }
+    .logo { font-size: 2rem; }
+    header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: .5px; }
+    header span { color: var(--accent); }
+
+    .tabs {
+      display: flex; gap: 4px; padding: 20px 32px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      padding: 10px 22px; border-radius: 8px 8px 0 0;
+      border: 1px solid transparent; border-bottom: none;
+      cursor: pointer; font-size: .95rem; font-weight: 500;
+      background: transparent; color: var(--muted);
+      transition: all .2s;
+    }
+    .tab.active { background: var(--card); color: var(--text); border-color: var(--border); }
+    .tab:hover:not(.active) { color: var(--text); }
+
+    .panels { padding: 28px 32px; max-width: 900px; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px; margin-bottom: 20px;
+    }
+    h2 { font-size: 1.1rem; margin-bottom: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-size: .8rem; }
+
+    /* Chat */
+    #chat-messages {
+      height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+      padding: 4px; margin-bottom: 16px;
+    }
+    .msg { max-width: 80%; padding: 12px 16px; border-radius: 12px; line-height: 1.5; font-size: .95rem; }
+    .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 12px 12px 2px 12px; }
+    .msg.bot { align-self: flex-start; background: #252840; border-radius: 12px 12px 12px 2px; }
+    .msg.error { background: #3d1a20; color: #ff8a9a; }
+
+    .input-row { display: flex; gap: 10px; }
+    textarea, input[type=text] {
+      flex: 1; background: #12141f; border: 1px solid var(--border); color: var(--text);
+      border-radius: 8px; padding: 10px 14px; font-size: .95rem; resize: none; outline: none;
+      transition: border .2s;
+    }
+    textarea:focus, input[type=text]:focus { border-color: var(--accent); }
+    button {
+      background: var(--accent); color: #fff; border: none; border-radius: 8px;
+      padding: 10px 20px; font-size: .95rem; font-weight: 600; cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    button:hover { opacity: .88; }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* Image */
+    .drop-zone {
+      border: 2px dashed var(--border); border-radius: 12px;
+      padding: 48px; text-align: center; cursor: pointer;
+      transition: border .2s, background .2s; margin-bottom: 16px;
+    }
+    .drop-zone:hover, .drop-zone.drag { border-color: var(--accent); background: #1e2035; }
+    .drop-zone .icon { font-size: 3rem; margin-bottom: 10px; }
+    .drop-zone p { color: var(--muted); }
+    #img-preview { max-width: 100%; max-height: 260px; border-radius: 8px; display: none; margin-bottom: 16px; }
+
+    .predictions { display: flex; flex-direction: column; gap: 8px; }
+    .pred-row { display: flex; align-items: center; gap: 12px; }
+    .pred-label { min-width: 140px; font-size: .9rem; }
+    .pred-bar-bg { flex: 1; height: 8px; background: #252840; border-radius: 4px; overflow: hidden; }
+    .pred-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 4px; transition: width .5s; }
+    .pred-pct { width: 50px; text-align: right; font-size: .85rem; color: var(--muted); }
+
+    /* Text */
+    .analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .stat-box { background: #12141f; border-radius: 10px; padding: 18px; text-align: center; }
+    .stat-val { font-size: 2rem; font-weight: 700; }
+    .stat-label { color: var(--muted); font-size: .8rem; margin-top: 4px; }
+    .positive { color: var(--accent3); }
+    .negative { color: var(--accent2); }
+    .entities-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .entity-chip {
+      padding: 4px 12px; border-radius: 20px; font-size: .8rem; font-weight: 600;
+      background: #252840; border: 1px solid var(--border);
+    }
+    .entity-chip .etype { color: var(--muted); margin-left: 4px; font-weight: 400; }
+
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #fff3; border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🤖</div>
+  <h1>Clod-<span>AI</span> Platform</h1>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('chat', this)">💬 Chatbot</button>
+  <button class="tab" onclick="switchTab('image', this)">🖼️ Rasm Tasnifi</button>
+  <button class="tab" onclick="switchTab('text', this)">📝 Matn Tahlili</button>
+</div>
+
+<div class="panels">
+
+  <!-- CHAT PANEL -->
+  <div class="panel active" id="panel-chat">
+    <div class="card">
+      <h2>AI bilan suhbat</h2>
+      <div id="chat-messages">
+        <div class="msg bot">Salom! Men Clod-AI yordamchisiman. Qanday yordam bera olaman? 😊</div>
+      </div>
+      <div class="input-row">
+        <textarea id="chat-input" rows="2" placeholder="Xabar yozing... (Enter = yuborish)"></textarea>
+        <button id="chat-btn" onclick="sendChat()">Yuborish</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMAGE PANEL -->
+  <div class="panel" id="panel-image">
+    <div class="card">
+      <h2>Rasm yuklang</h2>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('img-input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleDrop(event)">
+        <div class="icon">📁</div>
+        <p>Rasmni bu yerga tashlang yoki bosing</p>
+        <p style="font-size:.8rem;margin-top:6px;color:#555">JPG, PNG, WEBP</p>
+      </div>
+      <input type="file" id="img-input" accept="image/*" style="display:none" onchange="handleFile(this.files[0])"/>
+      <img id="img-preview"/>
+      <button id="classify-btn" onclick="classifyImage()" disabled>Tasniflash</button>
+      <div id="predictions" style="margin-top:20px"></div>
+    </div>
+  </div>
+
+  <!-- TEXT PANEL -->
+  <div class="panel" id="panel-text">
+    <div class="card">
+      <h2>Matn kiriting</h2>
+      <textarea id="text-input" rows="5" style="width:100%;margin-bottom:14px"
+        placeholder="Tahlil qilmoqchi bo'lgan matnni yozing..."></textarea>
+      <button onclick="analyzeText()">Tahlil qilish</button>
+      <div id="text-result" style="margin-top:20px"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+// ── Chat ───────────────────────────────────────────────────────────────────
+const chatHistory = [];
+
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+
+function appendMsg(text, role) {
+  const box = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+
+async function sendChat() {
+  const inp = document.getElementById('chat-input');
+  const text = inp.value.trim();
+  if (!text) return;
+
+  inp.value = '';
+  appendMsg(text, 'user');
+  chatHistory.push({ role: 'user', content: text });
+
+  const btn = document.getElementById('chat-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  const thinking = appendMsg('...', 'bot');
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: chatHistory }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Xato yuz berdi');
+    thinking.textContent = data.reply;
+    chatHistory.push({ role: 'assistant', content: data.reply });
+  } catch (e) {
+    thinking.textContent = '❌ ' + e.message;
+    thinking.className = 'msg error';
+    chatHistory.pop();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Yuborish';
+  }
+}
+
+// ── Image classifier ───────────────────────────────────────────────────────
+let selectedFile = null;
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag');
+  handleFile(e.dataTransfer.files[0]);
+}
+
+function handleFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  selectedFile = file;
+  const preview = document.getElementById('img-preview');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  document.getElementById('classify-btn').disabled = false;
+  document.getElementById('predictions').innerHTML = '';
+}
+
+async function classifyImage() {
+  if (!selectedFile) return;
+  const btn = document.getElementById('classify-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Tasniflanmoqda...';
+
+  try {
+    const form = new FormData();
+    form.append('file', selectedFile);
+    const res = await fetch('/api/classify-image', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+
+    const box = document.getElementById('predictions');
+    box.innerHTML = '<h2 style="margin-bottom:14px">Natijalar</h2><div class="predictions"></div>';
+    const list = box.querySelector('.predictions');
+    data.predictions.forEach(p => {
+      list.innerHTML += `
+        <div class="pred-row">
+          <div class="pred-label">${p.label}</div>
+          <div class="pred-bar-bg"><div class="pred-bar" style="width:${p.confidence}%"></div></div>
+          <div class="pred-pct">${p.confidence}%</div>
+        </div>`;
+    });
+  } catch (e) {
+    document.getElementById('predictions').innerHTML = `<p style="color:#ff8a9a">❌ ${e.message}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Tasniflash';
+  }
+}
+
+// ── Text analyzer ──────────────────────────────────────────────────────────
+async function analyzeText() {
+  const text = document.getElementById('text-input').value.trim();
+  if (!text) return;
+
+  const result = document.getElementById('text-result');
+  result.innerHTML = '<span class="spinner"></span> Tahlil qilinmoqda...';
+
+  try {
+    const res = await fetch('/api/analyze-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+
+    const sentClass = data.sentiment.label_en === 'POSITIVE' ? 'positive' : 'negative';
+    const entHtml = data.entities.length
+      ? data.entities.map(e =>
+          `<div class="entity-chip">${e.text} <span class="etype">${e.type}</span></div>`
+        ).join('')
+      : '<p style="color:var(--muted);font-size:.9rem">Aniq ob\'ektlar topilmadi</p>';
+
+    result.innerHTML = `
+      <div class="analysis-grid" style="margin-bottom:16px">
+        <div class="stat-box">
+          <div class="stat-val ${sentClass}">${data.sentiment.label_uz}</div>
+          <div class="stat-label">His-tuyg'u (${data.sentiment.confidence}% ishonch)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">${data.word_count}</div>
+          <div class="stat-label">So'zlar soni</div>
+        </div>
+      </div>
+      <div class="card" style="margin:0">
+        <h2 style="margin-bottom:10px">Topilgan shaxs/joy/tashkilot nomlari</h2>
+        <div class="entities-list">${entHtml}</div>
+      </div>`;
+  } catch (e) {
+    result.innerHTML = `<p style="color:#ff8a9a">❌ ${e.message}</p>`;
+  }
+}
+</script>
+</body>
+</html>
