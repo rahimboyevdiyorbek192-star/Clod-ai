@@ -8,6 +8,19 @@ echo   KiberStansiya - Web Platforma
 echo ============================================
 echo.
 
+:: Virtual muhit tekshirish
+if not exist "venv\Scripts\activate.bat" (
+    echo [XATO] Virtual muhit topilmadi!
+    echo Avval INSTALL.bat ni ishga tushiring.
+    pause
+    exit /b 1
+)
+
+:: Virtual muhitni faollashtirish
+call venv\Scripts\activate.bat
+echo [OK] Virtual muhit faollashtirildi.
+echo.
+
 :: ANTHROPIC_API_KEY tekshirish
 if "%ANTHROPIC_API_KEY%"=="" (
     echo [!] ANTHROPIC_API_KEY topilmadi.
@@ -17,15 +30,6 @@ if "%ANTHROPIC_API_KEY%"=="" (
         pause
         exit /b 1
     )
-)
-
-:: Uvicorn tekshirish
-python -c "import uvicorn" > nul 2>&1
-if %errorlevel% neq 0 (
-    echo [XATO] Kerakli kutubxonalar o'rnatilmagan!
-    echo INSTALL.bat ni ishga tushiring.
-    pause
-    exit /b 1
 )
 
 echo [OK] ANTHROPIC_API_KEY topildi.

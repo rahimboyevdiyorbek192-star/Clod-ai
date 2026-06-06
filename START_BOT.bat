@@ -8,24 +8,26 @@ echo   KiberStansiya Bot - Ishga tushirilmoqda
 echo ============================================
 echo.
 
+:: Virtual muhit tekshirish
+if not exist "venv\Scripts\activate.bat" (
+    echo [XATO] Virtual muhit topilmadi!
+    echo Avval INSTALL.bat ni ishga tushiring.
+    pause
+    exit /b 1
+)
+
 :: config.py tekshirish
 if not exist "bot\config.py" (
     echo [XATO] bot\config.py topilmadi!
-    echo INSTALL.bat ni avval ishga tushiring.
+    echo API_ID, API_HASH va BOT_TOKEN ni kiriting.
     pause
     exit /b 1
 )
 
-:: Kerakli kutubxonalar tekshirish
-python -c "import telethon" > nul 2>&1
-if %errorlevel% neq 0 (
-    echo [XATO] Kerakli kutubxonalar o'rnatilmagan!
-    echo INSTALL.bat ni ishga tushiring.
-    pause
-    exit /b 1
-)
+:: Virtual muhitni faollashtirish
+call venv\Scripts\activate.bat
 
-echo [OK] Barcha tekshiruvlar o'tdi.
+echo [OK] Virtual muhit faollashtirildi.
 echo.
 echo Bot ishlamoqda... (to'xtatish uchun Ctrl+C bosing)
 echo.

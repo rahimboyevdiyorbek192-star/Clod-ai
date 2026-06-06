@@ -17,9 +17,26 @@ if %errorlevel% neq 0 (
     pause
     exit /b 1
 )
-
 echo [OK] Python topildi.
 echo.
+
+:: Virtual muhit yaratish (boshqa loyihalar bilan ziddiyatni oldini oladi)
+if exist "venv\" (
+    echo [OK] Virtual muhit allaqachon mavjud.
+) else (
+    echo Virtual muhit yaratilmoqda...
+    python -m venv venv
+    if %errorlevel% neq 0 (
+        echo [XATO] Virtual muhit yaratib bo'lmadi!
+        pause
+        exit /b 1
+    )
+    echo [OK] Virtual muhit yaratildi.
+)
+echo.
+
+:: Virtual muhitni faollashtirish
+call venv\Scripts\activate.bat
 
 :: pip yangilash
 echo pip yangilanmoqda...
@@ -27,7 +44,7 @@ python -m pip install --upgrade pip --quiet
 
 :: Kerakli kutubxonalarni o'rnatish
 echo Kerakli kutubxonalar o'rnatilmoqda...
-pip install -r requirements.txt --quiet
+pip install -r requirements.txt
 
 if %errorlevel% neq 0 (
     echo.
