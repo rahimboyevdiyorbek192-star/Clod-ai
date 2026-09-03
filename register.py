@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 from typing import Callable, Awaitable
 
 from playwright.async_api import async_playwright, Page
@@ -10,10 +9,6 @@ from otp_reader import read_otp_from_imap
 logger = logging.getLogger(__name__)
 
 StatusCb = Callable[[str], Awaitable[None]]
-
-IMAP_EMAIL = os.getenv("IMAP_EMAIL", "")
-IMAP_PASSWORD = os.getenv("IMAP_PASSWORD", "")
-IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
 
 
 async def _click_continue(page: Page):
@@ -28,6 +23,9 @@ async def register_user(
     familiya: str,
     parol: str,
     promo: str = "",
+    imap_email: str = "",
+    imap_password: str = "",
+    imap_server: str = "imap.gmail.com",
     status_cb: StatusCb | None = None,
 ) -> dict:
     """
@@ -46,11 +44,11 @@ async def register_user(
                 pass
         logger.info(f"[{email}] {msg}")
 
-    if not IMAP_EMAIL or not IMAP_PASSWORD:
+    if not imap_email or not imap_password:
         return {
             "success": False,
             "email": email,
-            "message": "❌ IMAP_EMAIL yoki IMAP_PASSWORD .env da yo'q!",
+            "message": "❌ Gmail ulanmagan! /start → 'Gmail ulash' tugmasini bosing.",
         }
 
     async with async_playwright() as p:
@@ -115,13 +113,13 @@ async def register_user(
             await _click_continue(page)
 
             # ── STEP 3: OTP ───────────────────────────────────────────────
-            await notify(f"⏳ OTP kodi kutilmoqda ({IMAP_EMAIL} inbox)...")
+            await notify(f"⏳ OTP kodi kutilmoqda ({imap_email} inbox)...")
             await page.wait_for_url("**/otp**", timeout=20000)
 
             otp = await read_otp_from_imap(
-                imap_email=IMAP_EMAIL,
-                imap_password=IMAP_PASSWORD,
-                imap_server=IMAP_SERVER,
+                imap_email=imap_email,
+                imap_password=imap_password,
+                imap_server=imap_server,
                 timeout=90,
             )
 
