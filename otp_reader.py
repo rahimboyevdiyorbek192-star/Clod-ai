@@ -7,27 +7,12 @@ import time
 
 logger = logging.getLogger(__name__)
 
-IMAP_SERVERS = {
-    "gmail.com": "imap.gmail.com",
-    "mail.ru": "imap.mail.ru",
-    "yandex.ru": "imap.yandex.ru",
-    "yandex.com": "imap.yandex.ru",
-    "yahoo.com": "imap.mail.yahoo.com",
-    "outlook.com": "outlook.office365.com",
-    "hotmail.com": "outlook.office365.com",
-}
-
-
-def get_imap_server(email_addr: str) -> str:
-    domain = email_addr.split("@")[-1].lower()
-    return IMAP_SERVERS.get(domain, f"imap.{domain}")
-
 
 def _extract_body(msg) -> str:
+    """Email message dan matn olish."""
     if msg.is_multipart():
         for part in msg.walk():
-            ct = part.get_content_type()
-            if ct in ("text/plain", "text/html"):
+            if part.get_content_type() in ("text/plain", "text/html"):
                 try:
                     return part.get_payload(decode=True).decode("utf-8", errors="ignore")
                 except Exception:
@@ -39,59 +24,76 @@ def _extract_body(msg) -> str:
 
 
 async def read_otp_from_imap(
-    email_addr: str,
+    imap_email: str,
     imap_password: str,
-    imap_server: str | None = None,
-    timeout: int = 120,
+    imap_server: str = "imap.gmail.com",
+    timeout: int = 90,
 ) -> str | None:
     """
-    Poll IMAP inbox for a 4-digit OTP from ustoz.ai.
-    Returns the OTP string or None if not found within timeout seconds.
-    """
-    if not imap_server:
-        imap_server = get_imap_server(email_addr)
+    Bitta Gmail inboxdan ustoz.ai OTP sini o'qiydi.
+    Oxirgi kelgan OTP emailni topadi (alias emaillarning barchasi shu inboxga keladi).
 
+    Returns:
+        4 raqamli OTP string yoki None
+    """
     deadline = time.time() + timeout
     today = time.strftime("%d-%b-%Y")
+    last_seen_id: bytes | None = None
 
     while time.time() < deadline:
         try:
-            mail = imaplib.IMAP4_SSL(imap_server, timeout=10)
-            mail.login(email_addr, imap_password)
+            mail = imaplib.IMAP4_SSL(imap_server, timeout=15)
+            mail.login(imap_email, imap_password)
             mail.select("inbox")
 
-            # Search unseen emails from ustoz today
+            # Bugungi, ustoz.ai dan kelgan emaillarni qidirish
             _, ids = mail.search(None, f'(SINCE "{today}" FROM "ustoz")')
             if not ids[0]:
-                # Broader search
                 _, ids = mail.search(None, f'(SINCE "{today}")')
 
             if ids[0]:
                 all_ids = ids[0].split()
-                for msg_id in reversed(all_ids[-10:]):
-                    _, data = mail.fetch(msg_id, "(RFC822)")
-                    for part in data:
-                        if not isinstance(part, tuple):
-                            continue
-                        msg = email_lib.message_from_bytes(part[1])
-                        sender = msg.get("From", "")
-                        subject = msg.get("Subject", "")
+                # Eng so'nggi emailni ol
+                latest_id = all_ids[-1]
 
-                        # Only process emails related to ustoz.ai
-                        if "ustoz" in sender.lower() or "ustoz" in subject.lower() or "tasdiqlash" in subject.lower():
-                            body = _extract_body(msg)
-                            match = re.search(r'\b(\d{4})\b', body)
-                            if match:
-                                mail.logout()
-                                return match.group(1)
+                # Avval ko'rilgan email bo'lsa, yangi email kelishini kut
+                if last_seen_id == latest_id:
+                    mail.logout()
+                    await asyncio.sleep(5)
+                    continue
+
+                _, data = mail.fetch(latest_id, "(RFC822)")
+                for part in data:
+                    if not isinstance(part, tuple):
+                        continue
+                    msg = email_lib.message_from_bytes(part[1])
+                    sender = msg.get("From", "").lower()
+                    subject = msg.get("Subject", "").lower()
+
+                    is_ustoz = (
+                        "ustoz" in sender
+                        or "ustoz" in subject
+                        or "tasdiqlash" in subject
+                        or "verification" in subject
+                        or "otp" in subject
+                    )
+
+                    if is_ustoz:
+                        body = _extract_body(msg)
+                        match = re.search(r'\b(\d{4})\b', body)
+                        if match:
+                            mail.logout()
+                            return match.group(1)
+
+                last_seen_id = latest_id
 
             mail.logout()
 
-        except imaplib.IMAP4.error as e:
-            logger.error(f"IMAP auth error for {email_addr}: {e}")
-            return None  # Wrong credentials — stop immediately
-        except Exception as e:
-            logger.warning(f"IMAP error for {email_addr}: {e}")
+        except imaplib.IMAP4.error as exc:
+            logger.error(f"IMAP xatolik (login yoki server): {exc}")
+            return None
+        except Exception as exc:
+            logger.warning(f"IMAP ulanish xatoligi: {exc}")
 
         await asyncio.sleep(5)
 
