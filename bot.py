@@ -16,7 +16,8 @@ from telegram.ext import (
     filters,
 )
 
-from excel_parser import parse_excel
+from alias_gen import get_current_counter, next_alias, reset_counter
+from excel_parser import parse_excel, has_email_column
 from register import register_user
 
 load_dotenv()
@@ -30,14 +31,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ConversationHandler holatlari
 ASK_EMAIL, ASK_PASSWORD = range(2)
 
 
-# ─── Credentials (saqlash/yuklash) ───────────────────────────────────────────
+# ─── Credentials ─────────────────────────────────────────────────────────────
 
 def load_creds() -> dict:
-    """Saqlangan Gmail ma'lumotlarini yuklash."""
     if CREDS_FILE.exists():
         try:
             return json.loads(CREDS_FILE.read_text())
@@ -47,14 +46,12 @@ def load_creds() -> dict:
 
 
 def save_creds(email: str, password: str, server: str = "imap.gmail.com"):
-    """Gmail ma'lumotlarini faylga saqlash."""
-    CREDS_FILE.write_text(
-        json.dumps({"email": email, "password": password, "server": server}, ensure_ascii=False)
-    )
+    data = load_creds()
+    data.update({"email": email, "password": password, "server": server})
+    CREDS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2))
 
 
 def get_creds() -> tuple[str, str, str] | None:
-    """(email, password, server) yoki None qaytaradi."""
     c = load_creds()
     if c.get("email") and c.get("password"):
         return c["email"], c["password"], c.get("server", "imap.gmail.com")
@@ -63,35 +60,46 @@ def get_creds() -> tuple[str, str, str] | None:
 
 # ─── Klaviatura ──────────────────────────────────────────────────────────────
 
-def main_keyboard(creds_connected: bool) -> InlineKeyboardMarkup:
-    if creds_connected:
-        email = load_creds().get("email", "")
-        btn_label = f"✅ Gmail: {email}"
-        btn_action = "change_gmail"
+def main_keyboard(connected: bool) -> InlineKeyboardMarkup:
+    creds = load_creds()
+    if connected and creds.get("email"):
+        counter = creds.get("alias_counter", 0)
+        gmail_btn = InlineKeyboardButton(
+            f"✅ {creds['email']} (#{counter} alias)",
+            callback_data="change_gmail",
+        )
     else:
-        btn_label = "📧 Gmail ulash"
-        btn_action = "connect_gmail"
+        gmail_btn = InlineKeyboardButton("📧 Gmail ulash", callback_data="connect_gmail")
 
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(btn_label, callback_data=btn_action)],
+        [gmail_btn],
+        [InlineKeyboardButton("🔄 Alias counter reset", callback_data="reset_counter")],
         [InlineKeyboardButton("❓ Yordam", callback_data="help")],
     ])
 
 
-# ─── Handlers ────────────────────────────────────────────────────────────────
+# ─── /start ──────────────────────────────────────────────────────────────────
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     creds = get_creds()
-    text = (
-        "👋 *Ustoz.ai Ro'yxatdan O'tkazish Boti*\n\n"
-        + (
-            f"✅ Gmail ulangan: `{creds[0]}`\n\n"
-            "Excel faylni yuboring — bot o'zi ro'yxatdan o'tkazadi!"
-            if creds else
+    if creds:
+        email, _, _ = creds
+        counter = load_creds().get("alias_counter", 0)
+        text = (
+            f"👋 *Ustoz.ai Ro'yxatdan O'tkazish Boti*\n\n"
+            f"✅ Gmail ulangan: `{email}`\n"
+            f"📊 Hozirgacha {counter} ta alias ishlatildi\n\n"
+            "Excel faylni yuboring:\n"
+            "• Email ustuni *kerak emas* — bot o'zi yaratadi\n"
+            "• Kerakli ustunlar: *ism | familiya | parol*\n"
+            "• Ixtiyoriy: *promo*"
+        )
+    else:
+        text = (
+            "👋 *Ustoz.ai Ro'yxatdan O'tkazish Boti*\n\n"
             "⚠️ Gmail ulanmagan.\n\n"
             "Avval Gmail ni ulang, keyin Excel yuboring."
         )
-    )
     await update.message.reply_markdown(
         text,
         reply_markup=main_keyboard(creds is not None),
@@ -102,23 +110,23 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "📖 Foydalanish:\n\n"
         "1. /start → 'Gmail ulash' tugmasini bosing\n"
-        "2. Email va App Password kiriting\n"
-        "3. Excel fayl yuboring\n\n"
-        "Excel ustunlari:\n"
-        "  email | ism | familiya | parol | promo\n\n"
-        "Gmail alias misoli:\n"
+        "2. Gmail va App Password kiriting\n"
+        "3. Excel (.xlsx) yuboring\n\n"
+        "Excel formati (email ustuni shart emas):\n"
+        "  ism | familiya | parol | promo\n\n"
+        "Bot o'zi emaillarni yaratadi:\n"
         "  sizningmail+1@gmail.com\n"
         "  sizningmail+2@gmail.com\n"
-        "  s.izningmail@gmail.com\n\n"
+        "  ...\n\n"
+        "Barchasi bitta inboxga keladi!\n\n"
         "App Password olish:\n"
         "Gmail → Xavfsizlik → 2FA → App Passwords"
     )
 
 
-# ── Gmail ulash (ConversationHandler) ────────────────────────────────────────
+# ─── Gmail ulash (ConversationHandler) ───────────────────────────────────────
 
 async def btn_connect_gmail(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """'Gmail ulash' tugmasi bosilganda."""
     query = update.callback_query
     await query.answer()
     await query.message.reply_text(
@@ -129,30 +137,39 @@ async def btn_connect_gmail(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ASK_EMAIL
 
 
+async def btn_reset_counter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    reset_counter()
+    await query.message.reply_text(
+        "🔄 Alias counter nolga qaytarildi.\n"
+        "Keyingi ro'yxatdan o'tish +1 dan boshlanadi."
+    )
+    return ConversationHandler.END
+
+
 async def btn_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     await query.message.reply_text(
         "📖 Foydalanish:\n\n"
-        "1. Gmail ulash tugmasini bosing\n"
-        "2. Excel (.xlsx) yuboring\n\n"
-        "Gmail App Password olish:\n"
-        "Gmail → Xavfsizlik → 2FA → App Passwords → 16 ta belgi"
+        "Excel da faqat: ism | familiya | parol\n"
+        "Email ustuni shart emas — bot o'zi yaratadi!\n\n"
+        "App Password olish:\n"
+        "Gmail → Xavfsizlik → 2FA → App Passwords"
     )
     return ConversationHandler.END
 
 
 async def ask_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Foydalanuvchi email yozdi."""
     email = update.message.text.strip()
     if "@" not in email or "." not in email:
-        await update.message.reply_text("❌ Noto'g'ri email format. Qayta yuboring:")
+        await update.message.reply_text("❌ Noto'g'ri email. Qayta yuboring:")
         return ASK_EMAIL
-
     context.user_data["gmail_email"] = email
     await update.message.reply_text(
         f"✅ Email: `{email}`\n\n"
-        "🔑 Endi Gmail *App Password* ni yuboring (16 ta belgi):\n\n"
+        "🔑 Gmail *App Password* ni yuboring (16 ta belgi):\n\n"
         "Olish yo'li:\n"
         "Gmail → Xavfsizlik → 2-bosqichli tasdiqlash → App Passwords\n\n"
         "_Masalan: abcd efgh ijkl mnop_",
@@ -162,27 +179,24 @@ async def ask_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Foydalanuvchi App Password yozdi."""
-    password = update.message.text.strip().replace(" ", "")
+    raw_password = update.message.text.strip()
+    password_clean = raw_password.replace(" ", "")
 
-    if len(password) < 12:
+    if len(password_clean) < 12:
         await update.message.reply_text(
-            "❌ App Password 16 ta belgi bo'lishi kerak.\n"
-            "Gmail → Xavfsizlik → App Passwords dan oling.\n\n"
-            "Qayta yuboring:"
+            "❌ App Password kamida 12 ta belgi bo'lishi kerak.\n"
+            "Gmail → App Passwords dan oling. Qayta yuboring:"
         )
         return ASK_PASSWORD
 
     email = context.user_data.get("gmail_email", "")
-    raw_password = update.message.text.strip()  # bo'shliqlar bilan saqlash
 
-    # Xabarni o'chirish (maxfiylik uchun)
+    # Xabarni o'chirish (maxfiylik)
     try:
         await update.message.delete()
     except Exception:
         pass
 
-    # IMAP server aniqlash
     domain = email.split("@")[-1].lower()
     imap_servers = {
         "gmail.com": "imap.gmail.com",
@@ -194,12 +208,14 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
     server = imap_servers.get(domain, f"imap.{domain}")
 
     save_creds(email, raw_password, server)
+    counter = load_creds().get("alias_counter", 0)
 
     await update.effective_chat.send_message(
         f"✅ *Gmail ulandi!*\n\n"
-        f"📧 Email: `{email}`\n"
-        f"🔒 Parol: ••••••••••••\n\n"
-        "Endi Excel faylni yuboring!",
+        f"📧 `{email}`\n"
+        f"📊 Hozirgacha {counter} ta alias ishlatilgan\n\n"
+        "Endi Excel faylni yuboring!\n"
+        "_(email ustuni kerak emas — bot o'zi yaratadi)_",
         parse_mode="Markdown",
         reply_markup=main_keyboard(True),
     )
@@ -211,7 +227,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
-# ── Excel handler ─────────────────────────────────────────────────────────────
+# ─── Excel handler ────────────────────────────────────────────────────────────
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     doc = update.message.document
@@ -223,8 +239,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     creds = get_creds()
     if not creds:
         await update.message.reply_text(
-            "⚠️ Gmail ulanmagan!\n\n"
-            "/start buyrug'ini bosib, avval Gmail ni ulang.",
+            "⚠️ Gmail ulanmagan! /start → 'Gmail ulash' tugmasini bosing.",
             reply_markup=main_keyboard(False),
         )
         return
@@ -244,14 +259,23 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not users:
         await status.edit_text(
             "❌ Foydalanuvchi topilmadi!\n\n"
-            "Ustunlarni tekshiring: email | ism | familiya | parol | promo"
+            "Kerakli ustunlar: ism | familiya | parol\n"
+            "(email ixtiyoriy)"
         )
         return
 
+    # Email yo'q bo'lsa, alias generate qilish
+    need_alias = not has_email_column(users)
+    if need_alias:
+        aliases = next_alias(imap_email, len(users))
+        for user, alias in zip(users, aliases):
+            user["email"] = alias
+
+    counter_now = load_creds().get("alias_counter", 0)
     await status.edit_text(
-        f"📋 {len(users)} ta foydalanuvchi topildi.\n"
-        f"📧 Gmail: {imap_email}\n"
-        "⏳ Ro'yxatdan o'tkazish boshlandi (to'liq avtomatik)..."
+        f"📋 {len(users)} ta foydalanuvchi topildi\n"
+        + (f"📧 Alias emaillar: +{counter_now - len(users) + 1} → +{counter_now}\n" if need_alias else "")
+        + "⏳ Ro'yxatdan o'tkazish boshlandi..."
     )
 
     ok_count = 0
@@ -261,11 +285,11 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i, user in enumerate(users, start=1):
         email = user["email"]
 
-        async def update_status(msg: str, _i=i, _email=email, _ok=ok_count, _fail=fail_count):
+        async def update_status(msg: str, _i=i, _email=email):
             try:
                 await status.edit_text(
                     f"⏳ {_i}/{len(users)}: {_email}\n"
-                    f"✅ {_ok} muvaffaqiyat  ❌ {_fail} xato\n\n"
+                    f"✅ {ok_count} ta  ❌ {fail_count} ta\n\n"
                     f"▶ {msg}"
                 )
             except Exception:
@@ -294,7 +318,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ── Yakuniy hisobot ───────────────────────────────────────────────────────
     lines = [
-        f"📊 Yakuniy hisobot ({len(users)} ta):",
+        f"📊 *Yakuniy hisobot* ({len(users)} ta):",
         f"✅ Muvaffaqiyat: {ok_count}",
         f"❌ Xato: {fail_count}",
         "",
@@ -304,9 +328,12 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     report = "\n".join(lines)
     if len(report) <= 4000:
-        await status.edit_text(report)
+        await status.edit_text(report, parse_mode="Markdown")
     else:
-        await status.edit_text(f"📊 Hisobot:\n✅ {ok_count}  ❌ {fail_count}")
+        await status.edit_text(
+            f"📊 *Hisobot*\n✅ {ok_count}  ❌ {fail_count}",
+            parse_mode="Markdown",
+        )
         chunk: list[str] = []
         for line in lines[4:]:
             chunk.append(line)
@@ -325,7 +352,6 @@ def main():
 
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # Gmail ulash suhbati
     gmail_conv = ConversationHandler(
         entry_points=[
             CallbackQueryHandler(btn_connect_gmail, pattern="^(connect_gmail|change_gmail)$"),
@@ -341,6 +367,7 @@ def main():
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("cancel", cancel))
     app.add_handler(gmail_conv)
+    app.add_handler(CallbackQueryHandler(btn_reset_counter, pattern="^reset_counter$"))
     app.add_handler(CallbackQueryHandler(btn_help, pattern="^help$"))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
 
