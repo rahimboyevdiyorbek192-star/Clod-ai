@@ -47,7 +47,8 @@ def load_creds() -> dict:
 
 def save_creds(email: str, password: str, server: str = "imap.gmail.com"):
     data = load_creds()
-    data.update({"email": email, "password": password, "server": server})
+    # Parolni bo'shliqsiz saqlash (Gmail App Password uchun ikki variant ham ishlaydi)
+    data.update({"email": email, "password": password.replace(" ", ""), "server": server})
     CREDS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2))
 
 
@@ -90,8 +91,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"✅ Gmail ulangan: `{email}`\n"
             f"📊 Hozirgacha {counter} ta alias ishlatildi\n\n"
             "Excel faylni yuboring:\n"
-            "• Email ustuni *kerak emas* — bot o'zi yaratadi\n"
             "• Kerakli ustunlar: *ism | familiya | parol*\n"
+            "• Email ustuni *kerak emas* — bot o'zi yaratadi\n"
             "• Ixtiyoriy: *promo*"
         )
     else:
@@ -118,7 +119,6 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  sizningmail+1@gmail.com\n"
         "  sizningmail+2@gmail.com\n"
         "  ...\n\n"
-        "Barchasi bitta inboxga keladi!\n\n"
         "App Password olish:\n"
         "Gmail → Xavfsizlik → 2FA → App Passwords"
     )
@@ -152,8 +152,7 @@ async def btn_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     await query.message.reply_text(
-        "📖 Foydalanish:\n\n"
-        "Excel da faqat: ism | familiya | parol\n"
+        "📖 Excel da faqat: ism | familiya | parol\n"
         "Email ustuni shart emas — bot o'zi yaratadi!\n\n"
         "App Password olish:\n"
         "Gmail → Xavfsizlik → 2FA → App Passwords"
@@ -164,7 +163,7 @@ async def btn_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ask_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
     email = update.message.text.strip()
     if "@" not in email or "." not in email:
-        await update.message.reply_text("❌ Noto'g'ri email. Qayta yuboring:")
+        await update.message.reply_text("❌ Noto'g'ri email format. Qayta yuboring:")
         return ASK_EMAIL
     context.user_data["gmail_email"] = email
     await update.message.reply_text(
@@ -182,32 +181,33 @@ async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
     raw_password = update.message.text.strip()
     password_clean = raw_password.replace(" ", "")
 
-    if len(password_clean) < 12:
-        await update.message.reply_text(
-            "❌ App Password kamida 12 ta belgi bo'lishi kerak.\n"
-            "Gmail → App Passwords dan oling. Qayta yuboring:"
-        )
-        return ASK_PASSWORD
-
-    email = context.user_data.get("gmail_email", "")
-
     # Xabarni o'chirish (maxfiylik)
     try:
         await update.message.delete()
     except Exception:
         pass
 
+    if len(password_clean) < 12:
+        await update.effective_chat.send_message(
+            "❌ App Password kamida 12 ta belgi bo'lishi kerak.\n"
+            "Gmail → App Passwords dan oling. Qayta yuboring:"
+        )
+        return ASK_PASSWORD
+
+    email = context.user_data.get("gmail_email", "")
     domain = email.split("@")[-1].lower()
     imap_servers = {
-        "gmail.com": "imap.gmail.com",
-        "mail.ru": "imap.mail.ru",
-        "yandex.ru": "imap.yandex.ru",
-        "outlook.com": "outlook.office365.com",
-        "hotmail.com": "outlook.office365.com",
+        "gmail.com":    "imap.gmail.com",
+        "mail.ru":      "imap.mail.ru",
+        "yandex.ru":    "imap.yandex.ru",
+        "yandex.com":   "imap.yandex.ru",
+        "outlook.com":  "outlook.office365.com",
+        "hotmail.com":  "outlook.office365.com",
     }
     server = imap_servers.get(domain, f"imap.{domain}")
 
-    save_creds(email, raw_password, server)
+    # Bo'shliqsiz parolni saqlash
+    save_creds(email, password_clean, server)
     counter = load_creds().get("alias_counter", 0)
 
     await update.effective_chat.send_message(
@@ -232,8 +232,13 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     doc = update.message.document
 
-    if not doc.file_name.lower().endswith((".xlsx", ".xls")):
-        await update.message.reply_text("❌ Faqat .xlsx Excel fayl yuboring!")
+    # Faqat .xlsx qabul qilish
+    if not doc.file_name.lower().endswith(".xlsx"):
+        await update.message.reply_text(
+            "❌ Faqat *Excel (.xlsx)* fayl yuboring!\n\n"
+            "_.xls eski format — Excelda 'Excel Workbook (.xlsx)' deb saqlang._",
+            parse_mode="Markdown",
+        )
         return
 
     creds = get_creds()
@@ -245,20 +250,25 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     imap_email, imap_password, imap_server = creds
-
     status = await update.message.reply_text("📥 Excel o'qilmoqda...")
 
     try:
         tg_file = await doc.get_file()
         raw = await tg_file.download_as_bytearray()
-        users = parse_excel(bytes(raw))
+        users, parse_errors = parse_excel(bytes(raw))
     except Exception as exc:
         await status.edit_text(f"❌ Excel o'qishda xato: {exc}")
         return
 
+    if parse_errors:
+        err_msg = "⚠️ Excel da xatolar:\n" + "\n".join(f"• {e}" for e in parse_errors[:10])
+        if len(parse_errors) > 10:
+            err_msg += f"\n...va yana {len(parse_errors)-10} ta"
+        await update.message.reply_text(err_msg)
+
     if not users:
         await status.edit_text(
-            "❌ Foydalanuvchi topilmadi!\n\n"
+            "❌ To'g'ri foydalanuvchi topilmadi!\n\n"
             "Kerakli ustunlar: ism | familiya | parol\n"
             "(email ixtiyoriy)"
         )
@@ -274,7 +284,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     counter_now = load_creds().get("alias_counter", 0)
     await status.edit_text(
         f"📋 {len(users)} ta foydalanuvchi topildi\n"
-        + (f"📧 Alias emaillar: +{counter_now - len(users) + 1} → +{counter_now}\n" if need_alias else "")
+        + (f"📧 Alias: +{counter_now - len(users) + 1} → +{counter_now}\n" if need_alias else "")
         + "⏳ Ro'yxatdan o'tkazish boshlandi..."
     )
 
@@ -328,12 +338,12 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     report = "\n".join(lines)
     if len(report) <= 4000:
-        await status.edit_text(report, parse_mode="Markdown")
+        try:
+            await status.edit_text(report, parse_mode="Markdown")
+        except Exception:
+            await status.edit_text(report)
     else:
-        await status.edit_text(
-            f"📊 *Hisobot*\n✅ {ok_count}  ❌ {fail_count}",
-            parse_mode="Markdown",
-        )
+        await status.edit_text(f"📊 *Hisobot*\n✅ {ok_count}  ❌ {fail_count}", parse_mode="Markdown")
         chunk: list[str] = []
         for line in lines[4:]:
             chunk.append(line)
@@ -357,7 +367,7 @@ def main():
             CallbackQueryHandler(btn_connect_gmail, pattern="^(connect_gmail|change_gmail)$"),
         ],
         states={
-            ASK_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_email)],
+            ASK_EMAIL:    [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_email)],
             ASK_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_password)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
